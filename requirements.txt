@@ -1,0 +1,14 @@
+huggingface_hub>=0.24
+datasets>=2.19
+transformers>=4.45
+torch>=2.3
+peft>=0.12
+vllm>=0.6
+llamafactory
+mteb>=1.20
+rank_bm25
+sentence-transformers
+scipy
+numpy
+math_verify
+python-dotenv

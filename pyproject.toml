@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "eklav"
+version = "0.1.0"
+description = "Training/eval pipeline for Eklav: std-SFT / Answer-only SFT / Eklav LoRA SFT methods across passage reranking, table reranking, and math reasoning."
+requires-python = ">=3.9"
+
+[tool.setuptools.packages.find]
+include = ["eklav*"]
