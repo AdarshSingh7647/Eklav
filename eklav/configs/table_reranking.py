@@ -9,7 +9,6 @@ reconciled to match the other tasks.
 
 CONFIG = {
     "template": "qwen3",
-    "enable_thinking": False,  # build_prompts_v3.py builds windows with enable_thinking=False at train-data-build time
     "lora_rank": 16,
     "lora_alpha": 32,
     "lora_dropout": 0.05,

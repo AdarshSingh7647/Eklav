@@ -149,8 +149,6 @@ def _mask_history_for(task: str, method: str, cfg: Dict[str, Any]) -> bool:
 
 
 def _per_device_batch(task: str, method: str, cfg: Dict[str, Any]) -> int:
-    if task == "passage_reranking" and method == "eklav":
-        return cfg["per_device_train_batch_size_eklav"]
     return cfg["per_device_train_batch_size"]
 
 

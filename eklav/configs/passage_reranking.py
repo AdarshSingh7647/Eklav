@@ -7,6 +7,12 @@ is the older Qwen2.5-7B-only generator and is not used here).
 cutoff_len=2500 here, NOT the 32768 figure in experimental_setup.tex's shared
 default section -- the qwen3_8b generator (which produced the paper's actual
 checkpoints) hardcodes 2500, so that's what's used.
+
+The reference halves per_device_train_batch_size for its cotcond run (64->32)
+purely because that specific run shared a GPU with another job and hit OOMs;
+gradient_accumulation_steps auto-adjusts to keep effective_batch_size at 128
+either way, so training outcome is identical. Not reproduced here -- a single
+per_device_train_batch_size applies to all methods.
 """
 
 CONFIG = {
@@ -23,7 +29,6 @@ CONFIG = {
     "lr_scheduler_type": "cosine",
     "seed": 12345,
     "per_device_train_batch_size": 64,
-    "per_device_train_batch_size_eklav": 32,  # eklav override in reference: shares a GPU, halved headroom
     "save_steps": 750,
     "save_total_limit": 2,
     "mask_history": False,
