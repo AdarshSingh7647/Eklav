@@ -142,8 +142,12 @@ math).
 
 ## Results
 
-Numbers below are from the paper. std-SFT = CotGen, Eklav = CotCond in any
-older file/table names you may see referenced elsewhere.
+Numbers below are from the paper, except the token-count tables, which are
+computed directly from the saved generation logs (corpus-level means, not
+reported in the paper itself, which flags its own token-count claim for
+passage reranking as a single matched-pair estimate rather than a corpus
+statistic). std-SFT = CotGen, Eklav = CotCond in any older file/table names
+you may see referenced elsewhere.
 
 ### Passage reranking (BRIGHT, nDCG@10)
 
@@ -172,6 +176,25 @@ Per-domain breakdown, Qwen3-8B:
 | AoPS | 9.66 | **9.70** | +0.04 |
 | TheoremQA-Theorems | **43.37** | 40.95 | −2.42 |
 | TheoremQA-Questions | 26.96 | **28.46** | +1.50 |
+
+Average generated tokens per query, Qwen3-8B (corpus-level mean over every
+query in the domain, not a single matched pair):
+
+| Domain | std-SFT (tokens) | Eklav (tokens) | Reduction |
+|---|---|---|---|
+| Biology | 336.1 | 235.2 | 1.43x |
+| Earth Science | 321.9 | 218.3 | 1.47x |
+| Economics | 444.3 | 367.0 | 1.21x |
+| Psychology | 308.0 | 198.3 | 1.55x |
+| Robotics | 443.2 | 255.7 | 1.73x |
+| StackOverflow | 706.6 | 387.0 | 1.83x |
+| Sustainable Living | 328.0 | 216.7 | 1.51x |
+| Pony | 356.0 | 222.1 | 1.60x |
+| LeetCode | 390.5 | 214.5 | 1.82x |
+| AoPS | 464.3 | 200.6 | 2.32x |
+| TheoremQA-Theorems | 414.9 | 363.0 | 1.14x |
+| TheoremQA-Questions | 366.4 | 209.4 | 1.75x |
+| **Overall** | **406.5** | **257.2** | **1.58x** |
 
 ### Table reranking (nDCG@10, Qwen3-8B)
 
@@ -244,6 +267,18 @@ degrade most base models on GSM8K/MATH-500 relative to the untrained model.
 Reported here in full, including where Eklav loses, per the paper's own
 framing. See the paper's appendix for per-run spreads and standard
 deviations (sample sizes are small, e.g. AIME 2025 has only 30 questions).
+
+Average generated tokens per query, pooled across all 6 base models:
+
+| Benchmark | std-SFT (tokens) | Eklav (tokens) | Reduction |
+|---|---|---|---|
+| GSM8K | 1,260.6 | 1,167.0 | 1.08x |
+| MATH-500 | 3,960.3 | 3,418.3 | 1.16x |
+| GPQA-Diamond | 8,406.4 | 5,712.4 | 1.47x |
+| AIME 2025 | 13,836.3 | 11,320.6 | 1.22x |
+
+Eklav still reasons noticeably less here too, even where it doesn't win on
+accuracy -- the token savings and the accuracy result are separate claims.
 
 ## Just want the results, not the pipeline?
 
