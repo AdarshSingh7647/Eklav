@@ -9,6 +9,10 @@ downloads/builds the right data, generates the right LLaMA-Factory config for
 any base model you point it at, and runs faithful, full-metadata evals against
 the paper's benchmarks.
 
+**Just want the results, not the pipeline?** All runs' results and traces are
+in Dropbox: https://www.dropbox.com/scl/fo/904wl47miu4buov15qjj1/AAIMuCQ4dAabrjqnJ1_aHdc?rlkey=2gh8dg2btk2rvids27fg66xzb&dl=0
+(view-only link; ask the author for edit access if you need it).
+
 ## Quickstart
 
 ```bash
@@ -282,6 +286,11 @@ accuracy -- the token savings and the accuracy result are separate claims.
 
 ## Just want the results, not the pipeline?
 
-Results from this paper's runs have already been uploaded to
-`dropbox_cot_reranker:CoT_ReRanker/iclr_paper_data/`. There's no public share
-link yet for that path -- ask the author for one.
+Results from this paper's runs (passage reranking, table reranking, and math
+reasoning -- full outputs and traces) are in Dropbox:
+https://www.dropbox.com/scl/fo/904wl47miu4buov15qjj1/AAIMuCQ4dAabrjqnJ1_aHdc?rlkey=2gh8dg2btk2rvids27fg66xzb&dl=0
+(view-only; ask the author for edit access if needed).
+
+Merged full math-reasoning checkpoints (best-eval-loss Eklav, last-checkpoint
+std-SFT, per base model) are on Hugging Face:
+[AdarshSingh7647/Eklav-Question-Answering](https://huggingface.co/AdarshSingh7647/Eklav-Question-Answering).
