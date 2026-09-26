@@ -1,0 +1,8 @@
+{
+  "format": "jsonl",
+  "original_name": "theoremqa_questions.jsonl",
+  "chunks": [
+    "000.jsonl",
+    "001.jsonl"
+  ]
+}

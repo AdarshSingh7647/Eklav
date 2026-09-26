@@ -1,0 +1,5 @@
+{
+  "domain": "robotics",
+  "ndcg_at_10": 0.28392030378359245,
+  "n_queries": 101
+}

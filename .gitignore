@@ -3,8 +3,25 @@ __pycache__/
 *.egg-info/
 build/
 dist/
-/data/
-/results/
+# data/ and results/ ARE tracked (training data + eval outputs), except the
+# handful of individual files below that exceed GitHub's 100MB limit -- those
+# are split into <100MB chunks by scripts/split_large_files.py (see each
+# file's adjacent *.chunks/ dir, tracked instead) and excluded here by exact
+# path. Reassemble any of them with:
+#   python scripts/split_large_files.py join-all data results
+/data/passage_reranking/std-sft/train.json
+/data/passage_reranking/eklav-mask-only/train.json
+/data/passage_reranking/eklav/train.json
+/data/passage_reranking/answer-only/train.json
+/results/passage_reranking/qwen3-4b/answer-only/run5/leetcode.jsonl
+/results/passage_reranking/qwen3-4b/answer-only/run5/earth_science.jsonl
+/results/passage_reranking/qwen3-4b/answer-only/run3/earth_science.jsonl
+/results/passage_reranking/qwen3-4b/answer-only/run5/stackoverflow.jsonl
+/results/passage_reranking/qwen3-4b/answer-only/run5/theoremqa_questions.jsonl
+/results/passage_reranking/qwen3-4b/answer-only/run5/robotics.jsonl
 /runs/
+/slurm/logs/
+/ood_eval_results_v2/
+/notebooks/
 *.log
 .env

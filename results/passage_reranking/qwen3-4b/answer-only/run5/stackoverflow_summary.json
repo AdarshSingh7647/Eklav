@@ -1,0 +1,5 @@
+{
+  "domain": "stackoverflow",
+  "ndcg_at_10": 0.31915997235779797,
+  "n_queries": 117
+}

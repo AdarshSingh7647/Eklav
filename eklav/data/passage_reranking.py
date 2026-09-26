@@ -1,14 +1,30 @@
 """
 Passage reranking data: download (Eklav, std-SFT from HF) + build (Answer-only, local).
 
-HF repos (already built by the author):
-  AdarshSingh7647/Eklav-Reranker-Data        -- Eklav method, train.json/val.json
-  AdarshSingh7647/Eklav-Reranker-CotGen-Data -- std-SFT method, train.json/val.json
+HF dataset repos for Eklav / std-SFT / Answer-only already exist and will be
+released on acceptance; until then, set EKLAV_PR_HF_REPO_EKLAV,
+EKLAV_PR_HF_REPO_STDSFT, and EKLAV_PR_HF_REPO_ANSWERONLY to the repo IDs, or
+build Answer-only locally via build_answer_only() (pass --raw_arrow_path).
 
-Answer-only has no HF repo yet, so build_answer_only() builds it locally from
-the same raw Rank1 training data the other two setups originated from, using
-the same construction as the reference `naive()` builder: prompt (no hint,
-no reasoning) -> bare answer only.
+All three methods now download directly from HF. build_answer_only() is kept as
+the local-build fallback (pass --raw_arrow_path) and documents the construction:
+prompt (no hint, no reasoning) -> bare answer only, mirroring the reference
+`naive()` builder. The published AnswerOnly repo was verified to match it:
+identical example count and human prompts index-for-index against the
+CotGen (std-SFT) split, with each response equal to that example's
+post-`</think>` verdict.
+
+eklav-mask-only (ablation, passage reranking only): isolates loss masking as
+the single changed factor relative to std-SFT, holding context layout fixed.
+It reuses the std-SFT data verbatim (full teacher trace in the assistant
+turn, no prompt-side reasoning hint, no lexical filtering of verdict-bearing
+sentences) and differs from std-SFT only in which tokens are supervised --
+the `<think>...</think>` span is masked from the loss via
+EKLAV_THINK_CONTENT_MASK (see eklav.configs.passage_reranking.METHOD_ENV)
+instead of being trained on token-by-token. This isolates masking (factor b)
+from Eklav's other two simultaneous changes vs. std-SFT: prompt-side context
+placement and lexical filtering (factors a and c). See eklav-eval Section 5 /
+review notes for the three-way confound this disentangles.
 """
 
 import json
@@ -19,9 +35,15 @@ from typing import Any, Dict, List, Optional
 
 from huggingface_hub import hf_hub_download
 
+# HF repo IDs are not hardcoded (anonymized submission); set these env vars
+# to the real repo IDs, released on acceptance.
 HF_REPOS = {
-    "eklav": "AdarshSingh7647/Eklav-Reranker-Data",
-    "std-sft": "AdarshSingh7647/Eklav-Reranker-CotGen-Data",
+    "eklav": os.environ.get("EKLAV_PR_HF_REPO_EKLAV"),
+    "std-sft": os.environ.get("EKLAV_PR_HF_REPO_STDSFT"),
+    "answer-only": os.environ.get("EKLAV_PR_HF_REPO_ANSWERONLY"),
+    # Ablation: same data as std-sft (full trace in the response, no hint,
+    # no filter) -- only the loss mask (applied via METHOD_ENV) differs.
+    "eklav-mask-only": os.environ.get("EKLAV_PR_HF_REPO_STDSFT"),
 }
 
 SYSTEM_PROMPT = (
@@ -44,6 +66,12 @@ def download_hf_method(method: str, data_root: str) -> Dict[str, str]:
     if method not in HF_REPOS:
         raise ValueError(f"No HF repo for passage_reranking/{method}; use build_answer_only() instead.")
     repo_id = HF_REPOS[method]
+    if not repo_id:
+        raise ValueError(
+            f"No HF repo ID configured for passage_reranking/{method}. The dataset repos will be "
+            "released on acceptance; set the corresponding EKLAV_PR_HF_REPO_* env var in the "
+            "meantime, or use build_answer_only() for the answer-only method."
+        )
     out_dir = _data_dir(data_root) / method
     out_dir.mkdir(parents=True, exist_ok=True)
 

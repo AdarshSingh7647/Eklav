@@ -1,0 +1,8 @@
+{
+  "format": "jsonl",
+  "original_name": "stackoverflow.jsonl",
+  "chunks": [
+    "000.jsonl",
+    "001.jsonl"
+  ]
+}

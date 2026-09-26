@@ -29,7 +29,7 @@ CONFIG = {
     "lr_scheduler_type": "cosine",
     "seed": 12345,
     "per_device_train_batch_size": 64,
-    "save_steps": 750,
+    "save_steps": 250,
     "save_total_limit": 2,
     "mask_history": False,
 }
@@ -37,4 +37,8 @@ CONFIG = {
 # Env var set at launch per method (mask mechanism is sub-turn, not a YAML key).
 METHOD_ENV = {
     "eklav": {"EKLAV_ANSWER_ONLY_AFTER_TOKEN": "</think>"},
+    # Ablation: std-sft data/layout (full trace in the response) with only the
+    # <think>...</think> span masked from the loss, instead of Eklav's
+    # prompt-hint layout. Isolates masking from context placement + filtering.
+    "eklav-mask-only": {"EKLAV_THINK_CONTENT_MASK": "1"},
 }

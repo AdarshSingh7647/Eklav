@@ -15,9 +15,9 @@ Pipeline:
   5. nDCG@10 (+ recall/precision/MRR/perfect-recall @ {1,5,10,20}) via the
      same binary-relevance formula as the reference.
 
-Works against any of AITQARetrieval, FeTaQARetrieval, MultiHierttRetrieval,
-OTTQASmallRetrieval, OpenWikiTablesRetrieval (OOD) or NQTablesRetrieval
-(in-domain) via --benchmark.
+Works against any of FeTaQARetrieval, OTTQASmallRetrieval,
+OpenWikiTablesRetrieval (OOD) or NQTablesRetrieval (in-domain) via
+--benchmark.
 
 Saves one JSONL per (model, method, benchmark): one row per query, with
 prompt/thinking/answer per window, final ranking, gold ids, and metrics.

@@ -1,9 +1,9 @@
 """
 Math reasoning data: download (Eklav, std-SFT from HF) + build (Answer-only, local).
 
-HF repos (already built by the author):
-  AdarshSingh7647/Eklav-Math-Data        -- Eklav method, train.json/val.json
-  AdarshSingh7647/Eklav-Math-CotGen-Data -- std-SFT method, train.json/val.json
+HF dataset repos for Eklav / std-SFT already exist and will be released on
+acceptance; until then, set EKLAV_MATH_HF_REPO_EKLAV and
+EKLAV_MATH_HF_REPO_STDSFT to the repo IDs.
 
 Answer-only has no HF repo yet, so build_answer_only() builds it locally,
 applying the same "no hint, no reasoning, loss on answer only" principle as
@@ -12,15 +12,18 @@ Eklav/std-SFT HF repos were built from.
 """
 
 import json
+import os
 import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from huggingface_hub import hf_hub_download
 
+# HF repo IDs are not hardcoded (anonymized submission); set these env vars
+# to the real repo IDs, released on acceptance.
 HF_REPOS = {
-    "eklav": "AdarshSingh7647/Eklav-Math-Data",
-    "std-sft": "AdarshSingh7647/Eklav-Math-CotGen-Data",
+    "eklav": os.environ.get("EKLAV_MATH_HF_REPO_EKLAV"),
+    "std-sft": os.environ.get("EKLAV_MATH_HF_REPO_STDSFT"),
 }
 
 SYSTEM_PROMPT = (
@@ -41,6 +44,12 @@ def download_hf_method(method: str, data_root: str) -> Dict[str, str]:
     if method not in HF_REPOS:
         raise ValueError(f"No HF repo for math_reasoning/{method}; use build_answer_only() instead.")
     repo_id = HF_REPOS[method]
+    if not repo_id:
+        raise ValueError(
+            f"No HF repo ID configured for math_reasoning/{method}. The dataset repos will be "
+            "released on acceptance; set the corresponding EKLAV_MATH_HF_REPO_* env var in the "
+            "meantime, or use build_answer_only() for the answer-only method."
+        )
     out_dir = _data_dir(data_root) / method
     out_dir.mkdir(parents=True, exist_ok=True)
 

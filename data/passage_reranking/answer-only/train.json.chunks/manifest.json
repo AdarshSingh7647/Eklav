@@ -1,0 +1,10 @@
+{
+  "format": "json_array",
+  "original_name": "train.json",
+  "chunks": [
+    "000.json",
+    "001.json",
+    "002.json",
+    "003.json"
+  ]
+}

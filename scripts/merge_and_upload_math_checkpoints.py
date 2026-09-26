@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 Merge best-eval-loss Eklav (cotcond) and last-checkpoint std-SFT (cotgen)
-math-reasoning LoRA adapters into full models, upload each to
-AdarshSingh7647/Eklav-Question-Answering on HF, then delete the local
-adapter + merged copies before moving to the next model.
+math-reasoning LoRA adapters into full models, upload each to the configured
+HF repo, then delete the local adapter + merged copies before moving to the
+next model.
 
 Run one model at a time (--model) so disk usage never exceeds one merged
 model's footprint at a time.
@@ -18,37 +18,40 @@ from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from huggingface_hub import HfApi, create_repo
 
-CHECKPOINT_ROOT = "/mnt/data2/asing725_2/forge/downloads/model_forge_checkpoints/Math_Reasoning"
-HF_REPO = "AdarshSingh7647/Eklav-Question-Answering"
+CHECKPOINT_ROOT = os.environ.get(
+    "EKLAV_MATH_CHECKPOINT_ROOT",
+    "./local_raw_fallback/model_forge_checkpoints/Math_Reasoning",
+)
+HF_REPO = os.environ.get("EKLAV_MATH_HF_REPO")  # will be released on acceptance; set env var to upload
 
 MODELS = {
     "qwen3_0_6b": {
-        "base_model": "/mnt/shared/shared_hf_home/hub/models--Qwen--Qwen3-0.6B/snapshots/c1899de289a04d12100db370d81485cdf75e47ca",
+        "base_model": "Qwen/Qwen3-0.6B",
         "eklav_dir": "cotcond_bare",
         "stdsft_dir": "cotgen",
     },
     "qwen3_4b": {
-        "base_model": "/mnt/shared/shared_hf_home/hub/models--Qwen--Qwen3-4B/snapshots/1cfa9a7208912126459214e8b04321603b3df60c",
+        "base_model": "Qwen/Qwen3-4B",
         "eklav_dir": "cotcond_bare",
         "stdsft_dir": None,
     },
     "qwen3_8b": {
-        "base_model": "/mnt/shared/shared_hf_home/hub/models--Qwen--Qwen3-8B/snapshots/b968826d9c46dd6066d109eabc6255188de91218",
+        "base_model": "Qwen/Qwen3-8B",
         "eklav_dir": "cotcond_bare",
         "stdsft_dir": None,
     },
     "qwen3_14b": {
-        "base_model": "/mnt/shared/shared_hf_home/hub/models--Qwen--Qwen3-14B/snapshots/40c069824f4251a91eefaf281ebe4c544efd3e18",
+        "base_model": "Qwen/Qwen3-14B",
         "eklav_dir": "cotcond_bare",
         "stdsft_dir": None,
     },
     "glm_z1_9b": {
-        "base_model": "/mnt/data2/asing725_2/forge/downloads/models/GLM-Z1-9B-0414",
+        "base_model": "./local_raw_fallback/models/GLM-Z1-9B-0414",
         "eklav_dir": "cotcond_bare",
         "stdsft_dir": None,
     },
     "phi4_mini_reasoning": {
-        "base_model": "/mnt/data2/asing725_2/forge/downloads/models/Phi-4-mini-reasoning",
+        "base_model": "./local_raw_fallback/models/Phi-4-mini-reasoning",
         "eklav_dir": "cotcond_bare_explicit_think",
         "stdsft_dir": "cotgen",
     },
@@ -124,10 +127,16 @@ def merge_and_upload(base_model_path: str, adapter_path: str, merged_dir: str,
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", required=True, choices=list(MODELS.keys()))
-    ap.add_argument("--merge_scratch", default="/mnt/data2/asing725_2/tmp/eklav_merge_scratch")
+    ap.add_argument("--merge_scratch", default=os.environ.get("EKLAV_MERGE_SCRATCH", "./tmp/eklav_merge_scratch"))
     ap.add_argument("--delete_local_after_upload", action="store_true")
     ap.add_argument("--create_repo", action="store_true")
     args = ap.parse_args()
+
+    if not HF_REPO:
+        raise ValueError(
+            "EKLAV_MATH_HF_REPO is not set. The checkpoint repo will be released on acceptance; "
+            "set this env var to your own HF repo ID to run this script in the meantime."
+        )
 
     if args.create_repo:
         create_repo(HF_REPO, repo_type="model", private=False, exist_ok=True)

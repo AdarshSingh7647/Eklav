@@ -88,6 +88,41 @@ class EvalRecord:
     model_tag: str
 
 
+def _sanitize_extra_special_tokens(tokenizer_source: str) -> None:
+    """Older LLaMA-Factory/transformers checkpoints (and some HF Hub repos saved
+    with them) store tokenizer_config.json's 'extra_special_tokens' as a list of
+    token strings; current transformers expects a dict. Drop the stale field in
+    place so AutoTokenizer.from_pretrained doesn't crash with
+    AttributeError: 'list' object has no attribute 'keys'.
+
+    tokenizer_source may be a local directory or a HF Hub repo id -- for the
+    latter, resolve (and download if needed) the cached tokenizer_config.json
+    via huggingface_hub, using the same cache_dir transformers' own loader will
+    resolve to (TRANSFORMERS_CACHE if set, else the huggingface_hub default),
+    since AutoTokenizer.from_pretrained ignores HF_HOME once TRANSFORMERS_CACHE
+    is set and would otherwise read a separate, unpatched cached copy."""
+    if os.path.isdir(tokenizer_source):
+        config_path = os.path.join(tokenizer_source, "tokenizer_config.json")
+    else:
+        from huggingface_hub import hf_hub_download
+        from huggingface_hub.utils import EntryNotFoundError
+
+        cache_dir = os.environ.get("TRANSFORMERS_CACHE")
+        try:
+            config_path = hf_hub_download(tokenizer_source, "tokenizer_config.json", cache_dir=cache_dir)
+        except EntryNotFoundError:
+            return
+
+    if not os.path.isfile(config_path):
+        return
+    with open(config_path, "r") as f:
+        config = json.load(f)
+    if isinstance(config.get("extra_special_tokens"), list):
+        del config["extra_special_tokens"]
+        with open(config_path, "w") as f:
+            json.dump(config, f, indent=2)
+
+
 class Rank1StyleReranker:
     """vLLM-based pointwise reranker: chat-templated prompt with
     enable_thinking=True, temperature=0, p_true = sigmoid(logit_true -
@@ -107,6 +142,7 @@ class Rank1StyleReranker:
         self._lora_request = None
 
         tokenizer_source = lora_path or model_path
+        _sanitize_extra_special_tokens(tokenizer_source)
         self.tokenizer = AutoTokenizer.from_pretrained(tokenizer_source, trust_remote_code=True)
         self.tokenizer.padding_side = "left"
         if self.tokenizer.pad_token is None:

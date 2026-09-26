@@ -1,0 +1,65 @@
+{
+  "per_domain": {
+    "biology": {
+      "domain": "biology",
+      "ndcg_at_10": 0.49849708421428324,
+      "n_queries": 103
+    },
+    "earth_science": {
+      "domain": "earth_science",
+      "ndcg_at_10": 0.49762529220901297,
+      "n_queries": 116
+    },
+    "economics": {
+      "domain": "economics",
+      "ndcg_at_10": 0.31477406617181863,
+      "n_queries": 103
+    },
+    "psychology": {
+      "domain": "psychology",
+      "ndcg_at_10": 0.45718486991757046,
+      "n_queries": 101
+    },
+    "robotics": {
+      "domain": "robotics",
+      "ndcg_at_10": 0.28392030378359245,
+      "n_queries": 101
+    },
+    "stackoverflow": {
+      "domain": "stackoverflow",
+      "ndcg_at_10": 0.31915997235779797,
+      "n_queries": 117
+    },
+    "sustainable_living": {
+      "domain": "sustainable_living",
+      "ndcg_at_10": 0.37895382912141967,
+      "n_queries": 108
+    },
+    "pony": {
+      "domain": "pony",
+      "ndcg_at_10": 0.3877683046803888,
+      "n_queries": 112
+    },
+    "leetcode": {
+      "domain": "leetcode",
+      "ndcg_at_10": 0.284524787912588,
+      "n_queries": 142
+    },
+    "aops": {
+      "domain": "aops",
+      "ndcg_at_10": 0.08499788822259306,
+      "n_queries": 111
+    },
+    "theoremqa_theorems": {
+      "domain": "theoremqa_theorems",
+      "ndcg_at_10": 0.40723153259130407,
+      "n_queries": 76
+    },
+    "theoremqa_questions": {
+      "domain": "theoremqa_questions",
+      "ndcg_at_10": 0.28803568404487506,
+      "n_queries": 194
+    }
+  },
+  "avg_ndcg_at_10": 0.350222801268937
+}

@@ -30,8 +30,12 @@ TABLE_RERANKING_RAW_DATA_URL: Optional[str] = None
 
 # Fallback local source for the machine this repo was built on. Will NOT
 # exist on any other machine -- purely so this repo is immediately runnable
-# here before the public link exists.
-LOCAL_RAW_FALLBACK_DIR = "/mnt/data2/asing725_2/forge/model-forge/data/tabular_reranking/sharegpt_setups"
+# here before the public link exists. Overridable via env var since the path
+# is machine-specific.
+LOCAL_RAW_FALLBACK_DIR = os.environ.get(
+    "EKLAV_TABLE_RAW_FALLBACK_DIR",
+    "./local_raw_fallback/tabular_reranking/sharegpt_setups",
+)
 
 SYSTEM_PROMPT = (
     "You are a careful retrieval assistant that ranks candidate tables by "
@@ -224,9 +228,7 @@ def get_data(method: str, data_root: str, raw_path: Optional[str] = None) -> Dic
 # --------------------------------------------------------------------------- #
 
 OOD_BENCHMARK_REPOS = {
-    "AITQARetrieval": "ibm-research/AITQARetrieval",
     "FeTaQARetrieval": "ibm-research/FeTaQARetrieval",
-    "MultiHierttRetrieval": "ibm-research/MultiHierttRetrieval",
     "OTTQASmallRetrieval": "ibm-research/OTTQASmallRetrieval",
     "OpenWikiTablesRetrieval": "ibm-research/OpenWikiTablesRetrieval",
     "NQTablesRetrieval": "ibm-research/NQTablesRetrieval",  # in-domain, not OOD

@@ -1,0 +1,5 @@
+{
+  "domain": "theoremqa_questions",
+  "ndcg_at_10": 0.28803568404487506,
+  "n_queries": 194
+}

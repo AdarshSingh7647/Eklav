@@ -1,0 +1,5 @@
+{
+  "domain": "biology",
+  "ndcg_at_10": 0.500312779179717,
+  "n_queries": 103
+}
