@@ -1,6 +1,6 @@
 # Eklav
 
-Eklav is the training/eval pipeline for an ICLR paper's method across three tasks
+Eklav is the training method across three tasks
 -- **passage reranking** (pointwise true/false), **table reranking** (listwise
 JSON ranking), and **math reasoning** (worked solutions ending in `\boxed{...}`)
 -- each trained via LoRA SFT (LLaMA-Factory) under three supervision methods:
