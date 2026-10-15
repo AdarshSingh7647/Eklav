@@ -5,8 +5,29 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "eklav"
 version = "0.1.0"
-description = "Training/eval pipeline for Eklav: std-SFT / Answer-only SFT / Eklav LoRA SFT methods across passage reranking, table reranking, and math reasoning."
+description = "Eklav: reasoning-conditioned answer supervision for reranking. Trains and evaluates STD-CoT, NAIVE-SFT, EKLAV and MASK-ONLY on passage and table reranking."
+readme = "README.md"
 requires-python = ">=3.9"
+dependencies = [
+    "datasets>=2.19",
+    "huggingface_hub>=0.24",
+    "pyyaml",
+    "transformers>=4.45",
+]
+
+[project.optional-dependencies]
+train = ["llamafactory", "peft>=0.12", "torch>=2.3"]
+eval = ["vllm>=0.6", "rank_bm25", "sentence-transformers", "scipy", "numpy"]
+dev = ["pytest"]
+
+[project.scripts]
+eklav = "eklav.cli:main"
 
 [tool.setuptools.packages.find]
 include = ["eklav*"]
+
+[tool.setuptools.package-data]
+"eklav.lf_plugin" = ["startup/*.py"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

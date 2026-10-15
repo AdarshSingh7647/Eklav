@@ -1,141 +1,161 @@
 # Eklav
 
-Eklav is the training method across three tasks
--- **passage reranking** (pointwise true/false), **table reranking** (listwise
-JSON ranking), and **math reasoning** (worked solutions ending in `\boxed{...}`)
--- each trained via LoRA SFT (LLaMA-Factory) under three supervision methods:
-**std-SFT**, **Answer-only SFT**, and **Eklav** (this paper's method). The repo
-downloads/builds the right data, generates the right LLaMA-Factory config for
-any base model you point it at, and runs faithful, full-metadata evals against
-the paper's benchmarks.
+Eklav keeps a teacher's reasoning trace in the training input but supervises only
+the final task answer. This repository trains and evaluates it for **passage
+reranking** (pointwise true/false) and **table reranking** (listwise JSON ranking)
+with LoRA SFT in LLaMA-Factory, against the paper's baselines **STD-CoT** and
+**NAIVE-SFT** and the **MASK-ONLY** ablation.
+
+## Install
+
+```bash
+pip install -e ".[train,eval]"      # `train`: LLaMA-Factory.  `eval`: vLLM and the retrieval stack.
+```
 
 ## Quickstart
 
 ```bash
-git clone <this-repo> && cd Eklav
-pip install -r requirements.txt
-pip install -e llamafactory_plugin/          # the masking plugin (see below)
+# Train any task with any method. The data is built (or reassembled) on first use.
+eklav train --task passage_reranking --method eklav \
+    --base_model Qwen/Qwen3-8B --output_dir runs/passage_eklav
 
-# Train: pick a task, a method, and any base model (local path or HF repo id)
-python -m eklav.train \
-  --task passage_reranking --method eklav \
-  --base_model Qwen/Qwen3-8B \
-  --output_dir ./runs/passage_reranking_eklav_qwen3_8b \
-  --llamafactory_data_dir /path/to/LLaMA-Factory/data
+eklav train --task table_reranking --method mask-only \
+    --base_model Qwen/Qwen3-8B --output_dir runs/table_mask_only \
+    --raw_path /path/to/sft_examples.json
 
-# Data alone, no training (optional -- train.py does this automatically)
-python scripts/download_data.py --task math_reasoning --method std-sft
-
-# Eval
-python eklav/eval/passage_reranking.py \
-  --model_path ./runs/passage_reranking_eklav_qwen3_8b/merged \
-  --model_tag qwen3_8b_eklav --out_dir ./results/passage_reranking
+# Evaluate on a benchmark
+eklav eval --task passage_reranking --benchmark bright \
+    --model_path Qwen/Qwen3-8B --lora_path runs/passage_eklav \
+    --model_tag qwen3_8b_eklav --out_dir results/bright
 ```
 
-Swap `--task` between `passage_reranking` / `table_reranking` / `math_reasoning`,
-`--method` between `std-sft` / `answer-only` / `eklav`, and `--base_model` to any
-local checkpoint path or HF repo id. The paper trains Qwen3-4B/8B/14B and
-GLM-Z1-9B as examples, but nothing in the code is hardcoded to those.
+`--method` is `std-cot`, `naive-sft`, `eklav` or `mask-only`; `--base_model` is any
+local checkpoint or Hub id. `eklav train` writes a LLaMA-Factory config, then
+launches `llamafactory-cli train` with the loss-masking plugin loaded in every
+process, multi-GPU workers included. Add `--dry_run` to stop after writing the
+config, and `--set key=value` to override any config entry
+(`--set learning_rate=5e-5`). Run `eklav <command> --help` for all options.
 
-## The three methods
+## Methods
 
-- **std-SFT**: prompt -> full teacher reasoning trace + answer, with loss
-  computed over the entire response (thinking included). This is the
-  standard "distill the teacher's CoT" baseline.
-- **Answer-only SFT**: no hint in the prompt, no reasoning anywhere in the
-  loss -- the model's own thinking (if a multi-turn cue format is used) is
-  masked out entirely, and loss is computed only on the final answer tokens.
-- **Eklav** (this paper's method): a partial slice of the teacher's
-  reasoning trace is placed in the prompt as a hint, the model reasons
-  *freely* in its own `<think></think>` tags, and no loss is computed until
-  the think tag closes -- loss falls only on the answer tokens. Per task:
-  - *Passage reranking*: hint = first ~50% of the teacher trace (by sentence
-    count, verdict-revealing sentences filtered out). Response is
-    `<think>{free reasoning}</think>\n\n{true|false}`; loss is masked on
-    everything through and including `</think>`.
-  - *Table reranking*: hint = the teacher's **full**, untruncated trace
-    (truncating a multi-candidate comparison would remove candidates from
-    consideration, not just stop an argument early). Response is the bare
-    answer JSON only, no `<think>` block -- loss falls naturally on the
-    answer.
-  - *Math reasoning*: hint = teacher trace minus its last 2 lines (which
-    tend to restate the answer) plus any remaining leak phrases filtered.
-    Response is `<think>\n{continuation}\n</think>\n\n{boxed answer}`; loss
-    is masked on the `<think>` **content only** -- the tags and the final
-    boxed answer stay supervised (this is the one place Eklav supervises the
-    tag tokens; passage reranking masks through `</think>` inclusive).
+An example is `(x, r, a)`: task input, teacher reasoning trace, answer. The
+student's own reasoning is never part of a training sequence; at evaluation all
+teacher context is removed and the student generates its own reasoning before
+answering. A method is a serialized sequence plus a loss mask (defined once in
+[eklav/methods.py](eklav/methods.py)):
 
-## The LLaMA-Factory masking plugin
+| Method | Teacher trace in training | Sequence | Loss on |
+|---|---|---|---|
+| **NAIVE-SFT** | none | `[x; a]` | answer |
+| **STD-CoT** | in the response, as the imitation target | `[x; r + a]` | trace and answer |
+| **EKLAV** | in the prompt, as a hint `h(r)` | `[x + h(r); a]` | answer |
+| **MASK-ONLY** | in the response, loss masked (no hint) | `[x; r + a]` | answer |
 
-LLaMA-Factory's stock `mask_history` only masks at whole-turn granularity.
-Eklav needs sub-turn masking (mask up to, or around, a text marker *within* a
-single turn's response). `llamafactory_plugin/` packages this as a small,
-installable patch that works against a **stock** `pip install llamafactory`
--- no fork needed.
+"Answer" means the answer tokens plus the chat template's end-of-turn delimiters.
+Reasoning is written `<think>...</think>`. A response without reasoning is the bare
+answer, and the chat template then inserts an empty reasoning block; every
+answer-only mask excludes it as well. MASK-ONLY trains on exactly STD-CoT's data
+and differs only in the loss mask, which isolates masking from EKLAV's hint.
 
-**Install** (once, alongside your existing LLaMA-Factory environment):
+## Tasks
+
+| Task | Raw training corpus | Hint `h(r)` | Cutoff |
+|---|---|---|---|
+| `passage_reranking` | Rank1 training set (`jhu-clsp/rank1-training-data`), 385,791 examples | first half of the trace's sentences, verdict-bearing sentences removed | 2,500 |
+| `table_reranking` | 15,674 DeepSeek-R1 traces (`sft_examples.json`) | the complete trace | 32,768 |
+
+**Passage reranking.** The hint is shorter than the trace twice over: the second half
+is never shown, and verdict-bearing sentences (`VERDICT_RE` in
+[eklav/tasks/passage_reranking.py](eklav/tasks/passage_reranking.py)) are dropped from
+the half that is. The EKLAV sequence is therefore shorter than STD-CoT's: about 24%
+fewer processed tokens, about 30% fewer with the padding a batched trainer computes.
+That shorter sequence is the source of EKLAV's training-compute saving; masking loss
+alone does not change the FLOPs spent on a sequence.
+
+**Table reranking.** Truncating a multi-candidate comparison would drop candidates
+from consideration, so the whole trace is the hint. The trace is only ~14% of a table
+sequence, so EKLAV is not shorter than STD-CoT on this task.
+
+All methods of a task share one hyperparameter set (paper Sec. 4): LoRA rank 32 /
+alpha 64 on all linear layers, lr 1e-4, cosine schedule with 5% warmup, effective
+batch 128, bf16, two epochs. `--per_device_train_batch_size` is a memory knob only;
+gradient accumulation is recomputed so the effective batch stays 128.
+
+## Training data
+
+Data lives at `data/<task>/<layout>/{train,val}.json` in LLaMA-Factory's sharegpt
+format, one layout per distinct sequence: `std-cot` (also used by MASK-ONLY),
+`naive-sft` and `eklav`. Training data is built from the raw corpus the first time
+a run needs it, or explicitly:
 
 ```bash
-pip install -e llamafactory_plugin/
+eklav data build --task passage_reranking --method eklav --raw_path data/raw/rank1_training_data.arrow
 ```
 
-**Enable**, either way:
+## Evaluation
+
+Both reranking tasks evaluate on any retrieval benchmark. List the registered ones with
+`eklav eval --list_benchmarks`: **BRIGHT** (12 domains, scored on the BM25 top-100
+pools released with Rank1) and the IBM table benchmarks **AITQA, FeTaQA, OTT-QA,
+OpenWikiTables and NQ-Tables**.
+
+A new benchmark needs no code if it is in BEIR layout (`corpus.jsonl`,
+`queries.jsonl`, `qrels/<split>.tsv`) or a Hub dataset with `default` (qrels),
+`queries` and `corpus` configs:
+
+```bash
+eklav eval --task table_reranking --benchmark local:/data/my_benchmark --split test ...
+eklav eval --task passage_reranking --benchmark hf:org/my-benchmark ...
+```
+
+or register a loader in Python (see [eklav/eval/benchmarks.py](eklav/eval/benchmarks.py)):
 
 ```python
-# Option A: import at the top of your training entrypoint
-import eklav_llamafactory_plugin  # noqa: F401 -- applies the patch on import
+from eklav.eval.benchmarks import Benchmark, RetrievalData, register
+
+register(Benchmark("my-benchmark", loader=lambda subset: RetrievalData(queries, corpus, qrels)))
 ```
 
-```bash
-# Option B: drop it on PYTHONPATH so it auto-loads at interpreter startup
-# (works for `llamafactory-cli train ...` subprocess launches too)
-export PYTHONPATH="/path/to/Eklav/llamafactory_plugin:$PYTHONPATH"
+A benchmark that ships no candidate pools gets one from BM25 (passage reranking) or
+the BM25 + SPLADE + mpnet reciprocal-rank-fusion hybrid (table reranking);
+`--first_stage` overrides that. Each run writes `<subset>.jsonl` (full prompts and raw
+generations), `<subset>_summary.json` and `summary.json`, reporting nDCG, recall,
+precision and MRR at several cutoffs. Table reranking also reports how many queries had
+an unparseable ranking. `--num_questions N --seed S` evaluates a reproducible sample.
+
+## Loss masking
+
+LLaMA-Factory's `mask_history` masks whole turns. The answer-only objective needs a mask
+inside a turn: everything in the response up to and including `</think>`.
+[eklav/lf_plugin](eklav/lf_plugin) patches LLaMA-Factory's encoder to do that when
+`EKLAV_ANSWER_ONLY_AFTER_TOKEN="</think>"` is set; `eklav train` sets it for every
+method except STD-CoT and puts the plugin's startup directory on `PYTHONPATH`. The
+marker is located in decoded text, not by token ids, because BPE merges depend on
+context.
+
+## Adding a task
+
+A task is one module in [eklav/tasks/](eklav/tasks/) defining a `TASK`: its raw-corpus
+reader, hint `h(r)`, prompt wording and hyperparameters (see
+[table_reranking.py](eklav/tasks/table_reranking.py)). Register it in
+`eklav/tasks/__init__.py` and every method, `eklav train` and `eklav data` work for it.
+
+## Repository layout
+
 ```
-
-Then set the relevant env var before launching `llamafactory-cli train`:
-
-| Env var | Effect | Used by |
-|---|---|---|
-| `EKLAV_ANSWER_ONLY_AFTER_TOKEN="</think>"` | Masks loss on everything up to and including the *last* occurrence of the marker in the decoded response; only what follows is supervised. | Passage reranking's Eklav method |
-| `EKLAV_THINK_CONTENT_MASK=1` | Masks loss only on the text strictly between `<think>` and `</think>`; the tags and everything after stay supervised. | Math reasoning's Eklav method |
-
-(Legacy names `FORGE_ANSWER_ONLY_AFTER_TOKEN` / `FORGE_THINK_CONTENT_MASK` are
-also honored, for continuity with the original reference implementation.)
-
-Both patches match on **decoded text**, not raw token ids -- BPE merges are
-context-dependent, so a marker's token-id sequence when tokenized standalone
-can differ from how the same characters tokenize once embedded in
-surrounding text (confirmed empirically on GLM-Z1-9B's tokenizer). `eklav.train`
-sets the right env var automatically for each task/method combination that
-needs it -- table reranking's Eklav method needs neither (its response has no
-`<think>` block at all, so loss falls naturally on the answer).
-
-## Data
-
-Training data repos (Eklav / std-SFT / Answer-only, per task) will be
-released on acceptance; until then, set the corresponding
-`EKLAV_PR_HF_REPO_*` / `EKLAV_MATH_HF_REPO_*` env vars (see
-`eklav/data/passage_reranking.py` and `eklav/data/math_reasoning.py`) to your
-own repo IDs, or build locally from raw sources via `eklav/data/*.py`
-(`--raw_path`; see each file's docstring).
-
-`eklav/eval/metrics.py` and `eklav/data/eval_downloads.py` carry download
-code for every eval benchmark: BRIGHT + `jhu-clsp/rank1-run-files` (passage
-reranking), and the IBM Research table-retrieval repos used for table
-reranking (OOD + NQ-Tables in-domain).
-
-## Eval
-
-Each task's eval script (`eklav/eval/{passage_reranking,table_reranking,math_reasoning}.py`)
-is a faithful port of the paper's reference eval harness (vLLM generation,
-exact sampling settings, exact scoring/parsing logic -- see each file's
-docstring for provenance). Every run writes one JSONL per (model, method,
-benchmark), one row per example, with the full prompt, full raw generation,
-parsed answer, gold answer, and id/benchmark/model metadata -- plus a
-`*_summary.json` with the aggregate metric (nDCG@10 for reranking, pass@1 for
-math).
+eklav/
+  methods.py        the four methods and their loss masks
+  data.py           sequence layouts and training-data building
+  tasks/            passage and table reranking
+  train.py          eklav train
+  eval/             eklav eval: benchmarks, retrieval, the two evaluators
+  lf_plugin/        answer-only loss mask for LLaMA-Factory
+  chunks.py         splitting/reassembling large data files
+data/               built training data
+results/            evaluation outputs
+tests/              pytest suite (no GPU needed)
+```
 
 ## Results
 
-Results, run outputs/traces, and merged checkpoints will be released on
-acceptance.
+Full results, run traces and checkpoints will be released on acceptance.
